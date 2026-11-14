@@ -25,6 +25,7 @@ export function EnvironmentPicker() {
   const isCloud = connection?.status === "ready" && connection.backend === "cloud";
 
   const mode = useAppStore((state) => state.executionMode);
+  const handover = useAppStore((state) => state.remoteHandover);
   // An environment is ALWAYS effectively chosen: the explicit pick, else the
   // mode's default. Private mode defaults to this computer's app server;
   // every other mode defaults to the cloud sandbox. Exactly one row is
@@ -163,9 +164,11 @@ export function EnvironmentPicker() {
         className="chip"
       >
         <span className="truncate text-xs">
-          {envOverride === null
-            ? "Cloud sandbox"
-            : current || (mode === "local" ? "This computer" : "Cloud sandbox")}
+          {handover.phase === "switching"
+            ? "Connection lost — switching…"
+            : envOverride === null
+              ? "Cloud sandbox"
+              : current || (mode === "local" ? "This computer" : "Cloud sandbox")}
         </span>
         <ChevronDownIcon className="h-3 w-3 shrink-0" />
       </button>
@@ -223,7 +226,9 @@ export function EnvironmentPicker() {
           )}
           {mode === "remote-env" && adoption.kind !== "adopted" && !(ownRemote?.running && ownRemote.effectiveName) && (
             <div className="px-3 pb-1 pt-1.5 text-xs text-muted">
-              Reconnecting this machine…
+              {handover.phase === "switching"
+                ? "Connection lost — switching to a new registration…"
+                : "Reconnecting this machine…"}
             </div>
           )}
           {mode === "remote-env" && adoption.kind !== "adopted" && ownRemote?.running && ownRemote.effectiveName && (

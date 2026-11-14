@@ -209,6 +209,7 @@ export type SendMessageInput = {
 // (remote_auth variant appended below)
 export type AppEvent =
   | { type: "remote_adoption"; adoption: import("./libs/remote-env.js").AdoptedState }
+  | { type: "remote_handover"; handover: import("./libs/remote-env.js").HandoverState }
   | { type: "remote_auth"; auth: import("./libs/remote-env.js").RemoteAuthState }
   | { type: "connection"; state: ConnectionState }
   | { type: "turn.started"; conversationId: string }

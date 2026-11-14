@@ -100,6 +100,7 @@ export function remoteEnvState(): RemoteEnvState {
         name: s.effectiveName ?? "",
         deviceId: adopted.kind === "owned" ? adopted.deviceId : "",
       });
+      if (handover.phase === "switching") setHandover({ phase: "stable" });
     }
   }
   return {
@@ -289,6 +290,29 @@ function setAdopted(next: AdoptedState): void {
   for (const listener of adoptionListeners) listener(next);
 }
 
+/** Push-driven handover lifecycle: the renderer learns about disconnects
+ * and recoveries the MOMENT they happen — no click-to-refresh. */
+export type HandoverState =
+  | { phase: "stable" }
+  | { phase: "switching"; since: number; reason: "disconnected" };
+
+let handover: HandoverState = { phase: "stable" };
+const handoverListeners = new Set<(s: HandoverState) => void>();
+
+export function handoverState(): HandoverState {
+  return handover;
+}
+
+export function onHandoverChange(listener: (s: HandoverState) => void): () => void {
+  handoverListeners.add(listener);
+  return () => handoverListeners.delete(listener);
+}
+
+function setHandover(next: HandoverState): void {
+  handover = next;
+  for (const listener of handoverListeners) listener(next);
+}
+
 export function remoteAdoptionState(): AdoptedState {
   return adopted;
 }
@@ -365,6 +389,7 @@ function startWatch(
       if (alive) return;
       // Death detected: adopted → replace with our own; owned → respawn.
       const wasAdopted = adopted.kind === "adopted";
+      setHandover({ phase: "switching", since: Date.now(), reason: "disconnected" });
       setAdopted({ kind: "none" });
       stopWatch();
       ensureRemoteEnv(env, "replacement");

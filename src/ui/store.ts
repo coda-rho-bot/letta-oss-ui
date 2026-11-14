@@ -108,6 +108,8 @@ type AppState = {
    * the effective folder instead of leaking one target's path to another. */
   envCwdOverrides: Record<string, string>;
   /** The spawn's OAuth device-flow state (remote-env mode sign-in). */
+  /** Handover lifecycle: disconnect detected → switching → stable. */
+  remoteHandover: { phase: "stable" } | { phase: "switching"; since: number; reason: string };
   /** Live adoption state (owned vs adopted registration) — event-driven. */
   remoteAdoption:
     | { kind: "none" }
@@ -226,6 +228,7 @@ const CLEARED = {
   computersError: null,
   envOverrides: {},
   envCwdOverrides: {},
+  remoteHandover: { phase: "stable" },
   remoteAdoption: { kind: "none" },
   remoteAuth: { status: "idle" },
   providers: null,
@@ -259,6 +262,10 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   handleEvent: (event) => {
     switch (event.type) {
+      case "remote_handover":
+        set({ remoteHandover: event.handover });
+        if (event.handover.phase === "stable") void get().refreshComputers();
+        return;
       case "remote_adoption":
         set({ remoteAdoption: event.adoption });
         return;
