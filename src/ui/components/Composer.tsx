@@ -55,30 +55,35 @@ function FolderMenu({ cwd }: { cwd: string }) {
     setTargetFolder(null);
     setFolderResolving(true);
     console.log('[chip] resolving target', targetKey);
-    void window.bridge
-      .getTargetFolder({ targetKey })
-      .then((remembered) => {
-        console.log('[chip] remembered:', remembered);
-        if (remembered) {
-          setTargetFolder(remembered);
-          return;
-        }
-        // No remembered pick: discover and show the target's own default.
-        return window.bridge
-          .getDefaultDirectory({
-            selector: targetDeviceId ? { deviceId: targetDeviceId } : null,
-          })
-          .then((def) => {
-            console.log('[chip] discovered default:', def);
-            setTargetFolder(def);
-          })
-          .catch(() => setTargetFolder(null));
-      })
-      .catch((failure) => {
-        console.log('[chip] FAILED:', String(failure).slice(0, 200));
-        setTargetFolder(null);
-      })
-      .finally(() => setFolderResolving(false));
+    // 10s timeout: a websocket to a dead lease can hang the chain forever,
+    // freezing the chip at "Remote". Losing the race = retry next open.
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 10_000));
+    void Promise.race([
+      window.bridge
+        .getTargetFolder({ targetKey })
+        .then((remembered) => {
+          console.log('[chip] remembered:', remembered);
+          if (remembered) {
+            setTargetFolder(remembered);
+            return;
+          }
+          // No remembered pick: discover and show the target's own default.
+          return window.bridge
+            .getDefaultDirectory({
+              selector: targetDeviceId ? { deviceId: targetDeviceId } : null,
+            })
+            .then((def) => {
+              console.log('[chip] discovered default:', def);
+              setTargetFolder(def);
+            })
+            .catch(() => setTargetFolder(null));
+        })
+        .catch((failure) => {
+          console.log('[chip] FAILED:', String(failure).slice(0, 200));
+          setTargetFolder(null);
+        }),
+      timeout,
+    ]).finally(() => setFolderResolving(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effectiveEnv, targetKey]);
 
